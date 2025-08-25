@@ -2,6 +2,10 @@
 console.log('Script loading - WaveSurfer available:', typeof WaveSurfer);
 console.log('Regions plugin available:', typeof WaveSurfer?.regions);
 
+// Wait for DOM to be ready before setting up event listeners
+document.addEventListener('DOMContentLoaded', () => {
+    console.log('DOM ready, setting up application...');
+
 // --- i18n --- //
 const translations = {
     en: {
@@ -49,6 +53,14 @@ const playBtn = document.getElementById('play-btn');
 const loadingSection = document.querySelector('.loading-section');
 const regionStart = document.getElementById('region-start');
 const regionEnd = document.getElementById('region-end');
+
+// Debug: Check if all elements are found
+console.log('DOM elements check:');
+console.log('- twitchUrlInput:', !!twitchUrlInput);
+console.log('- getClipBtn:', !!getClipBtn);
+console.log('- video:', !!video);
+console.log('- downloadBtn:', !!downloadBtn);
+console.log('- playBtn:', !!playBtn);
 
 const backendUrl = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
     ? 'http://localhost:3000' 
@@ -333,3 +345,6 @@ downloadBtn.addEventListener('click', async () => {
 
 // Set default language
 setLanguage('en');
+
+console.log('Application setup complete!');
+}); // End of DOMContentLoaded
