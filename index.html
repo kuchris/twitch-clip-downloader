@@ -5,36 +5,28 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Twitch Clip to MP3</title>
     <link rel="stylesheet" href="style.css">
-    <script src="https://unpkg.com/wavesurfer.js@7/dist/wavesurfer.min.js"></script>
-    <script src="https://unpkg.com/wavesurfer.js@7/dist/plugins/regions.min.js"></script>
-    <script src="https://unpkg.com/wavesurfer.js@7/dist/plugins/timeline.min.js"></script>
 </head>
 <body>
     <div class="container">
-        <div class="header-section">
-            <h1 data-i18n-key="title">Twitch Clip to MP3 Downloader</h1>
-            <div class="lang-switcher">
-                <button id="lang-en">English</button>
-                <button id="lang-jp">日本語</button>
-            </div>
-        </div>
+        <h1>Twitch Clip to MP3 Downloader</h1>
         <div class="input-section">
-            <input type="text" id="twitch-url" data-i18n-key="placeholder" placeholder="Enter Twitch Clip URL">
-            <button id="get-clip-btn" data-i18n-key="getClip">Get Clip</button>
+            <input type="text" id="twitch-url" placeholder="Enter Twitch Clip URL">
+            <button id="get-clip-btn">Get Clip</button>
         </div>
         <div class="editor-section" style="display: none;">
-            <div class="video-container" style="display: none;">
-                <video id="clip-video"></video>
+            <div class="video-container">
+                <video id="clip-video" controls></video>
             </div>
-            <div id="waveform"></div>
-            <div id="wave-timeline"></div>
-            <div class="controls">
-                <button id="play-btn">Play / Pause</button>
-                <button id="download-btn" data-i18n-key="download">Download MP3</button>
+            <div class="trim-controls">
+                <label for="start-time">Start Time:</label>
+                <input type="number" id="start-time" value="0" min="0">
+                <label for="end-time">End Time:</label>
+                <input type="number" id="end-time" value="0" min="0">
+                <button id="download-btn">Download MP3</button>
             </div>
         </div>
         <div class="loading-section" style="display: none;">
-            <p data-i18n-key="loading">Downloading and converting, please wait...</p>
+            <p>Downloading and converting, please wait...</p>
         </div>
     </div>
     <script src="script.js"></script>

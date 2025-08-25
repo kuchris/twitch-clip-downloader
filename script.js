@@ -1,52 +1,14 @@
 document.addEventListener('DOMContentLoaded', () => {
-    // --- i18n --- //
-    const translations = {
-        en: {
-            title: 'Twitch Clip to MP3 Downloader',
-            placeholder: 'Enter Twitch Clip URL',
-            getClip: 'Get Clip',
-            download: 'Download MP3',
-            loading: 'Downloading and converting, please wait...',
-            playPause: 'Play / Pause',
-        },
-        jp: {
-            title: 'TwitchクリップMP3ダウンローダー',
-            placeholder: 'TwitchクリップのURLを入力',
-            getClip: 'クリップを取得',
-            download: 'MP3をダウンロード',
-            loading: 'ダウンロードと変換中です、お待ちください...',
-            playPause: '再生/一時停止',
-        }
-    };
-
-    function setLanguage(lang) {
-        document.querySelectorAll('[data-i18n-key]').forEach(element => {
-            const key = element.getAttribute('data-i18n-key');
-            if (translations[lang] && translations[lang][key]) {
-                if (element.placeholder !== undefined) {
-                    element.placeholder = translations[lang][key];
-                } else {
-                    element.textContent = translations[lang][key];
-                }
-            }
-        });
-    }
-
-    document.getElementById('lang-en').addEventListener('click', () => setLanguage('en'));
-    document.getElementById('lang-jp').addEventListener('click', () => setLanguage('jp'));
-
-    // --- App Logic --- //
     const twitchUrlInput = document.getElementById('twitch-url');
     const getClipBtn = document.getElementById('get-clip-btn');
     const editorSection = document.querySelector('.editor-section');
     const video = document.getElementById('clip-video');
+    const startTimeInput = document.getElementById('start-time');
+    const endTimeInput = document.getElementById('end-time');
     const downloadBtn = document.getElementById('download-btn');
-    const playBtn = document.getElementById('play-btn');
     const loadingSection = document.querySelector('.loading-section');
 
     const backendUrl = 'https://twitch-clip-downloader-backend.onrender.com';
-    let wavesurfer = null;
-    let selectedRegion = { start: 0, end: 0 };
 
     getClipBtn.addEventListener('click', async () => {
         const url = twitchUrlInput.value;
@@ -55,82 +17,51 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        editorSection.style.display = 'none';
-        loadingSection.style.display = 'block';
-
-        if (wavesurfer) {
-            wavesurfer.destroy();
-        }
+        editorSection.style.display = 'none'; // Hide until we get the URL
+        loadingSection.style.display = 'block'; // Show loading indicator
 
         try {
             const response = await fetch(`${backendUrl}/get-clip-url`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json'
+                },
                 body: JSON.stringify({ url })
             });
 
             if (response.ok) {
                 const data = await response.json();
-                
-                wavesurfer = WaveSurfer.create({
-                    container: '#waveform',
-                    waveColor: '#ddd',
-                    progressColor: '#6441a5',
-                    media: video, // Use the video element for media
-                    plugins: [
-                        WaveSurfer.regions.create(),
-                        WaveSurfer.timeline.create({
-                            container: '#wave-timeline'
-                        })
-                    ]
-                });
-
-                wavesurfer.load(data.clipUrl);
-
-                wavesurfer.on('ready', () => {
-                    const duration = wavesurfer.getDuration();
-                    selectedRegion = wavesurfer.plugins.regions.add({
-                        start: 0,
-                        end: duration,
-                        color: 'rgba(125, 91, 190, 0.2)',
-                        drag: true,
-                        resize: true,
-                    });
-                    editorSection.style.display = 'block';
-                    loadingSection.style.display = 'none';
-                });
-
-                wavesurfer.on('region-updated', (region) => {
-                    selectedRegion.start = region.start;
-                    selectedRegion.end = region.end;
-                });
-
+                video.src = data.clipUrl;
+                editorSection.style.display = 'block'; // Show editor
             } else {
                 const errorText = await response.text();
                 alert(`Error: ${errorText}`);
-                loadingSection.style.display = 'none';
             }
         } catch (error) {
             console.error('Error getting clip URL:', error);
             alert('An error occurred while getting the clip URL.');
-            loadingSection.style.display = 'none';
+        } finally {
+            loadingSection.style.display = 'none'; // Hide loading indicator
         }
     });
 
-    playBtn.addEventListener('click', () => {
-        if (wavesurfer && wavesurfer.isReady) {
-            wavesurfer.playPause();
-        }
+    video.addEventListener('loadedmetadata', () => {
+        startTimeInput.value = 0;
+        endTimeInput.value = Math.floor(video.duration);
     });
+
 
     downloadBtn.addEventListener('click', async () => {
         const url = twitchUrlInput.value;
+        const start = parseFloat(startTimeInput.value);
+        const end = parseFloat(endTimeInput.value);
+
         if (!url) {
             alert('Please enter a Twitch clip URL.');
             return;
         }
 
-        if (selectedRegion.start >= selectedRegion.end) {
+        if (start >= end) {
             alert('Start time must be less than end time.');
             return;
         }
@@ -140,12 +71,10 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const response = await fetch(`${backendUrl}/download`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ 
-                    url, 
-                    start: selectedRegion.start, 
-                    end: selectedRegion.end 
-                })
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ url, start, end })
             });
 
             if (response.ok) {
@@ -170,7 +99,4 @@ document.addEventListener('DOMContentLoaded', () => {
             loadingSection.style.display = 'none';
         }
     });
-
-    // Set default language
-    setLanguage('en');
 });
