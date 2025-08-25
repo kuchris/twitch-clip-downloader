@@ -331,7 +331,7 @@ downloadBtn.addEventListener('click', async () => {
 });
 
 // Set default language
-setLanguage('en');
+setLanguage('jp');
 
 console.log('Application setup complete!');
 } // End of initializeApp function
