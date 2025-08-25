@@ -120,6 +120,22 @@ button:hover {
     gap: 1rem;
 }
 
+.info-note {
+    margin-top: 1rem;
+    padding: 1rem;
+    background-color: #2d4a3d;
+    border: 1px solid #4a7c59;
+    border-radius: 5px;
+    text-align: left;
+}
+
+.info-note p {
+    margin: 0;
+    font-size: 0.9rem;
+    color: #b8d4c3;
+    line-height: 1.4;
+}
+
 .loading-section {
     margin-top: 2rem;
     padding: 2rem;
