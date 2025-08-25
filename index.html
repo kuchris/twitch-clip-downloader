@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Twitch Clip to MP3</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Twitch Clip to MP3 Downloader</h1>
+        <div class="input-section">
+            <input type="text" id="twitch-url" placeholder="Enter Twitch Clip URL">
+            <button id="get-clip-btn">Get Clip</button>
+        </div>
+        <div class="editor-section" style="display: none;">
+            <div class="video-container">
+                <video id="clip-video" controls></video>
+            </div>
+            <div class="trim-controls">
+                <label for="start-time">Start Time:</label>
+                <input type="number" id="start-time" value="0" min="0">
+                <label for="end-time">End Time:</label>
+                <input type="number" id="end-time" value="0" min="0">
+                <button id="download-btn">Download MP3</button>
+            </div>
+        </div>
+        <div class="loading-section" style="display: none;">
+            <p>Downloading and converting, please wait...</p>
+        </div>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>

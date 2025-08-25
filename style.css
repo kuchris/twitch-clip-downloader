@@ -1,0 +1,91 @@
+body {
+    font-family: sans-serif;
+    background-color: #1a1a1a;
+    color: #fff;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    margin: 0;
+}
+
+.container {
+    width: 80%;
+    max-width: 800px;
+    background-color: #2a2a2a;
+    padding: 2rem;
+    border-radius: 10px;
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+    text-align: center;
+}
+
+h1 {
+    margin-bottom: 2rem;
+}
+
+.input-section {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 2rem;
+}
+
+#twitch-url {
+    flex-grow: 1;
+    padding: 0.5rem;
+    border-radius: 5px;
+    border: 1px solid #444;
+    background-color: #333;
+    color: #fff;
+}
+
+button {
+    padding: 0.5rem 1rem;
+    border-radius: 5px;
+    border: none;
+    background-color: #6441a5;
+    color: #fff;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+button:hover {
+    background-color: #7d5bbe;
+}
+
+.editor-section {
+    border-top: 1px solid #444;
+    padding-top: 2rem;
+}
+
+.video-container {
+    margin-bottom: 2rem;
+}
+
+#clip-video {
+    width: 100%;
+    border-radius: 5px;
+}
+
+.trim-controls {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 1rem;
+}
+
+.trim-controls label {
+    font-size: 0.9rem;
+}
+
+.trim-controls input {
+    width: 60px;
+    padding: 0.3rem;
+    border-radius: 5px;
+    border: 1px solid #444;
+    background-color: #333;
+    color: #fff;
+}
+
+.loading-section {
+    margin-top: 2rem;
+}
