@@ -8,7 +8,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const downloadBtn = document.getElementById('download-btn');
     const loadingSection = document.querySelector('.loading-section');
 
-    const backendUrl = 'http://localhost:3000';
+    const backendUrl = 'https://twitch-clip-downloader-backend.onrender.com';
 
     getClipBtn.addEventListener('click', async () => {
         const url = twitchUrlInput.value;
