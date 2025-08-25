@@ -39,6 +39,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const twitchUrlInput = document.getElementById('twitch-url');
     const getClipBtn = document.getElementById('get-clip-btn');
     const editorSection = document.querySelector('.editor-section');
+    const videoContainer = document.querySelector('.video-container');
     const video = document.getElementById('clip-video');
     const downloadBtn = document.getElementById('download-btn');
     const playBtn = document.getElementById('play-btn');
@@ -58,8 +59,10 @@ document.addEventListener('DOMContentLoaded', () => {
         editorSection.style.display = 'none';
         loadingSection.style.display = 'block';
 
+        // Clean up previous wavesurfer instance
         if (wavesurfer) {
             wavesurfer.destroy();
+            wavesurfer = null;
         }
 
         try {
@@ -72,37 +75,72 @@ document.addEventListener('DOMContentLoaded', () => {
             if (response.ok) {
                 const data = await response.json();
                 
+                // Set up video element
+                video.src = data.clipUrl;
+                video.crossOrigin = 'anonymous';
+                
+                // Create wavesurfer instance
                 wavesurfer = WaveSurfer.create({
                     container: '#waveform',
                     waveColor: '#ddd',
                     progressColor: '#6441a5',
-                    media: video, // Use the video element for media
+                    cursorColor: '#fff',
+                    barWidth: 2,
+                    barRadius: 1,
+                    responsive: true,
+                    height: 100,
                     plugins: [
-                        WaveSurfer.regions.create(),
-                        WaveSurfer.timeline.create({
-                            container: '#wave-timeline'
-                        })
+                        WaveSurfer.Timeline.create({
+                            container: '#wave-timeline',
+                            height: 20,
+                            timeInterval: 1,
+                            primaryLabelInterval: 5,
+                            style: {
+                                fontSize: '10px',
+                                color: '#fff'
+                            }
+                        }),
+                        WaveSurfer.Regions.create()
                     ]
                 });
 
-                wavesurfer.load(data.clipUrl);
+                // Load the audio from the video URL
+                await wavesurfer.load(data.clipUrl);
 
                 wavesurfer.on('ready', () => {
                     const duration = wavesurfer.getDuration();
-                    selectedRegion = wavesurfer.plugins.regions.add({
+                    
+                    // Clear any existing regions
+                    wavesurfer.regions.clear();
+                    
+                    // Add initial region covering the entire duration
+                    const region = wavesurfer.regions.addRegion({
                         start: 0,
                         end: duration,
-                        color: 'rgba(125, 91, 190, 0.2)',
+                        color: 'rgba(100, 65, 165, 0.2)',
                         drag: true,
                         resize: true,
                     });
+
+                    selectedRegion = { start: 0, end: duration };
+
+                    // Show the editor section
+                    videoContainer.style.display = 'block';
                     editorSection.style.display = 'block';
                     loadingSection.style.display = 'none';
                 });
 
+                // Handle region updates
                 wavesurfer.on('region-updated', (region) => {
                     selectedRegion.start = region.start;
                     selectedRegion.end = region.end;
+                });
+
+                // Handle errors
+                wavesurfer.on('error', (error) => {
+                    console.error('Wavesurfer error:', error);
+                    alert('Error loading audio waveform. Please try again.');
+                    loadingSection.style.display = 'none';
                 });
 
             } else {
