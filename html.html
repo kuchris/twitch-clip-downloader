@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Twitch Clip to MP3</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <div class="header-section">
+            <h1 data-i18n-key="title">Twitch Clip to MP3 Downloader</h1>
+            <div class="lang-switcher">
+                <button id="lang-en">English</button>
+                <button id="lang-jp">日本語</button>
+            </div>
+        </div>
+        <div class="input-section">
+            <input type="text" id="twitch-url" data-i18n-key="placeholder" placeholder="Enter Twitch Clip URL">
+            <button id="get-clip-btn" data-i18n-key="getClip">Get Clip</button>
+        </div>
+        <div class="editor-section" style="display: none;">
+            <div class="video-container" style="display: none;">
+                <video id="clip-video" playsinline controls></video>
+            </div>
+            <div id="waveform"></div>
+            <div class="region-info">
+                <span>Selection: <span id="region-start">0.00</span>s - <span id="region-end">0.00</span>s</span>
+            </div>
+            <div class="controls">
+                <button id="play-btn">Play / Pause</button>
+                <button id="download-btn" data-i18n-key="download">Download MP3</button>
+            </div>
+        </div>
+        <div class="loading-section" style="display: none;">
+            <p data-i18n-key="loading">Downloading and converting, please wait...</p>
+        </div>
+    </div>
+
+    <!-- Load WaveSurfer with sequential loading to ensure plugins work -->
+    <script>
+        // Load WaveSurfer and plugins sequentially
+        function loadScript(src) {
+            return new Promise((resolve, reject) => {
+                const script = document.createElement('script');
+                script.src = src;
+                script.onload = resolve;
+                script.onerror = reject;
+                document.head.appendChild(script);
+            });
+        }
+
+        async function loadWaveSurfer() {
+            try {
+                console.log('Loading WaveSurfer core...');
+                await loadScript('https://unpkg.com/wavesurfer.js@6.6.4/dist/wavesurfer.min.js');
+                console.log('WaveSurfer core loaded');
+                
+                console.log('Loading regions plugin...');
+                await loadScript('https://unpkg.com/wavesurfer.js@6.6.4/dist/plugin/wavesurfer.regions.min.js');
+                console.log('Regions plugin loaded');
+                
+                // Verify everything is loaded
+                console.log('WaveSurfer available:', typeof WaveSurfer);
+                console.log('WaveSurfer.regions available:', typeof WaveSurfer?.regions);
+                
+                if (typeof WaveSurfer === 'undefined' || !WaveSurfer.regions) {
+                    throw new Error('Failed to load WaveSurfer or regions plugin');
+                }
+                
+                // Now load our main script
+                return loadScript('script.js');
+            } catch (error) {
+                console.error('Error loading WaveSurfer:', error);
+                alert('Failed to load WaveSurfer. Please refresh the page.');
+            }
+        }
+
+        // Start loading when DOM is ready
+        document.addEventListener('DOMContentLoaded', loadWaveSurfer);
+    </script>
+</body>
+</html>
