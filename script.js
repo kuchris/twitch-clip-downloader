@@ -14,7 +14,7 @@ const translations = {
         getClip: 'Get Clip',
         download: 'Download MP3',
         loading: 'Downloading and converting, please wait...',
-        playPause: 'Show Region Info',
+        playPause: 'Play / Region Info',
     },
     jp: {
         title: 'TwitchクリップMP3ダウンローダー',
@@ -22,7 +22,7 @@ const translations = {
         getClip: 'クリップを取得',
         download: 'MP3をダウンロード',
         loading: 'ダウンロードと変換中です、お待ちください...',
-        playPause: 'リージョン情報を表示',
+        playPause: '再生/リージョン情報',
     }
 };
 
@@ -161,24 +161,41 @@ getClipBtn.addEventListener('click', async () => {
             });
 
             // Instead of trying to load the video directly (which causes CORS issues),
-            // we'll use a different approach to get the audio data
-            console.log('Attempting to load audio while handling CORS...');
+            // we'll request the backend to proxy the audio data for us
+            console.log('Requesting backend to proxy audio data to avoid CORS...');
             
             try {
-                // First, try to get the actual clip duration from the backend
-                // We'll use the existing clip URL but try to extract metadata
-                console.log('Using clip URL:', data.clipUrl);
+                // The backend already has the capability to fetch clip data
+                // We'll request it to return the audio data as a blob
+                const audioResponse = await fetch(`${backendUrl}/proxy-audio`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        clipUrl: data.clipUrl,
+                        action: 'get-audio-data'
+                    })
+                });
                 
-                // Since we can't fetch the audio directly due to CORS, we'll create a synthetic waveform
-                // that represents the clip duration and allows region selection
+                if (audioResponse.ok) {
+                    const audioBlob = await audioResponse.blob();
+                    const audioUrl = URL.createObjectURL(audioBlob);
+                    
+                    console.log('Audio data received from backend, loading into WaveSurfer...');
+                    wavesurfer.load(audioUrl);
+                } else {
+                    throw new Error('Backend could not proxy audio data');
+                }
+            } catch (audioError) {
+                console.warn('Could not get audio data from backend, using fallback approach:', audioError);
+                
+                // Fallback: Create a synthetic waveform for region selection
+                // This allows users to still select regions even without the actual audio
                 console.log('Creating synthetic waveform for region selection...');
                 
                 // Estimate duration (most Twitch clips are 15-60 seconds)
-                // We'll use a reasonable default and let the user adjust
                 const estimatedDuration = 30; // 30 seconds default
                 
                 // Create a minimal audio file that WaveSurfer can handle
-                // This will be a very short silent audio that we can use for region selection
                 const silentAudio = 'data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSuBzvLZiTYIG2m98OScTgwOUarm7blmGgU7k9n1unEiBC13yO/eizEIHWq+8+OWT';
                 
                 console.log('Loading synthetic audio into WaveSurfer...');
@@ -187,11 +204,8 @@ getClipBtn.addEventListener('click', async () => {
                 // Store the estimated duration for region calculations
                 selectedRegion = { start: 0, end: estimatedDuration };
                 
-            } catch (audioError) {
-                console.error('Audio loading failed:', audioError);
-                alert('Unable to load audio waveform. You can still download the full clip.');
-                loadingSection.style.display = 'none';
-                return;
+                // Show a note about the fallback
+                console.log('Using synthetic waveform - actual audio not available due to CORS');
             }
 
             // Show the editor section
@@ -221,6 +235,11 @@ getClipBtn.addEventListener('click', async () => {
 
                 selectedRegion = { start: 0, end: duration };
                 updateRegionDisplay();
+                
+                // Show the editor section
+                videoContainer.style.display = 'none';
+                editorSection.style.display = 'block';
+                loadingSection.style.display = 'none';
                 
                 console.log('Editor ready with waveform');
             });
@@ -306,9 +325,19 @@ console.log('- downloadBtn click listener:', !!downloadBtn.onclick);
 
 playBtn.addEventListener('click', () => {
     console.log('Play button clicked!');
-    // Since we can't play the actual audio due to CORS, show region info instead
-    const regionInfo = `Selected region: ${selectedRegion.start.toFixed(2)}s - ${selectedRegion.end.toFixed(2)}s (Duration: ${(selectedRegion.end - selectedRegion.start).toFixed(2)}s)`;
-    alert(`Audio preview not available due to CORS restrictions.\n\n${regionInfo}\n\nYou can still download the trimmed MP3 with the selected region.`);
+    if (wavesurfer && wavesurfer.isReady()) {
+        // Check if we have real audio or synthetic
+        const duration = wavesurfer.getDuration();
+        if (duration > 1) { // Real audio has meaningful duration
+            wavesurfer.playPause();
+        } else {
+            // Synthetic audio - show region info instead
+            const regionInfo = `Selected region: ${selectedRegion.start.toFixed(2)}s - ${selectedRegion.end.toFixed(2)}s (Duration: ${(selectedRegion.end - selectedRegion.start).toFixed(2)}s)`;
+            alert(`Audio preview not available.\n\n${regionInfo}\n\nYou can still download the trimmed MP3 with the selected region.`);
+        }
+    } else {
+        alert('Audio not ready yet. Please wait for the waveform to load.');
+    }
 });
 
 downloadBtn.addEventListener('click', async () => {
