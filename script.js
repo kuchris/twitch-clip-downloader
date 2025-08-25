@@ -99,9 +99,16 @@ document.addEventListener('DOMContentLoaded', () => {
                     throw new Error('No clip URL received from backend');
                 }
 
-                // Set up video element
+                // Set up video element and test the URL
                 video.src = data.clipUrl;
+                video.crossOrigin = 'anonymous'; // Try to handle CORS
                 video.load();
+                
+                // Test if the URL is accessible
+                console.log('Testing URL accessibility...');
+                fetch(data.clipUrl, { method: 'HEAD', mode: 'no-cors' })
+                    .then(() => console.log('URL appears to be accessible'))
+                    .catch(e => console.warn('URL accessibility test failed:', e));
                 
                 console.log('Creating WaveSurfer instance...');
                 
@@ -116,6 +123,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     responsive: true,
                     height: 100,
                     normalize: true,
+                    backend: 'MediaElement', // Use MediaElement backend for better CORS handling
+                    mediaControls: false,
                     plugins: [
                         WaveSurfer.regions.create({
                             regions: [],
@@ -126,10 +135,26 @@ document.addEventListener('DOMContentLoaded', () => {
                     ]
                 });
 
-                console.log('WaveSurfer instance created, loading audio...');
-
-                // Load the audio
-                wavesurfer.load(data.clipUrl);
+                // Alternative approach: try to use the video element as media source
+                console.log('Attempting to use video element as media source...');
+                
+                // Wait for video to be ready, then load wavesurfer
+                video.addEventListener('loadedmetadata', () => {
+                    console.log('Video metadata loaded, now loading wavesurfer...');
+                    try {
+                        wavesurfer.loadMediaElement(video);
+                    } catch (mediaError) {
+                        console.warn('Media element loading failed, trying URL directly:', mediaError);
+                        // Fallback to direct URL loading
+                        wavesurfer.load(data.clipUrl);
+                    }
+                });
+                
+                video.addEventListener('error', (videoError) => {
+                    console.error('Video loading error:', videoError);
+                    console.log('Attempting direct wavesurfer loading...');
+                    wavesurfer.load(data.clipUrl);
+                });
 
                 wavesurfer.on('ready', () => {
                     console.log('WaveSurfer ready');
@@ -181,10 +206,24 @@ document.addEventListener('DOMContentLoaded', () => {
                     console.log('Region created:', selectedRegion);
                 });
 
-                // Handle errors
+                // Handle errors with more detail
                 wavesurfer.on('error', (error) => {
-                    console.error('Wavesurfer error:', error);
-                    alert('Error loading audio waveform. The clip might not support audio extraction or there might be CORS issues.');
+                    console.error('Wavesurfer error details:', error);
+                    console.error('Error type:', typeof error);
+                    console.error('Error message:', error.message || error);
+                    
+                    let errorMessage = 'Error loading audio waveform.';
+                    if (error.message) {
+                        if (error.message.includes('CORS')) {
+                            errorMessage = 'CORS error: Cannot load audio due to cross-origin restrictions.';
+                        } else if (error.message.includes('decode')) {
+                            errorMessage = 'Audio decode error: The audio format might not be supported.';
+                        } else {
+                            errorMessage = `Audio loading error: ${error.message}`;
+                        }
+                    }
+                    
+                    alert(errorMessage);
                     loadingSection.style.display = 'none';
                 });
 
@@ -201,13 +240,19 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         } catch (error) {
             console.error('Detailed error:', error);
+            console.error('Error stack:', error.stack);
+            console.error('Error name:', error.name);
+            console.error('Error message:', error.message);
+            
+            let userMessage = 'An error occurred while loading the clip.';
             
             if (error.name === 'TypeError' && error.message.includes('fetch')) {
-                alert('Cannot connect to backend server. Please check if the backend is running.');
-            } else {
-                alert(`An error occurred: ${error.message}`);
+                userMessage = 'Cannot connect to backend server. Please check if the backend is running.';
+            } else if (error.message) {
+                userMessage = `Error: ${error.message}`;
             }
             
+            alert(userMessage);
             loadingSection.style.display = 'none';
         }
     });
