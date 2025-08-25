@@ -1,4 +1,13 @@
 document.addEventListener('DOMContentLoaded', () => {
+    // Check if WaveSurfer is loaded
+    if (typeof WaveSurfer === 'undefined') {
+        console.error('WaveSurfer.js is not loaded!');
+        alert('WaveSurfer.js library failed to load. Please check your internet connection.');
+        return;
+    }
+
+    console.log('WaveSurfer loaded successfully:', WaveSurfer);
+
     // --- i18n --- //
     const translations = {
         en: {
@@ -45,39 +54,61 @@ document.addEventListener('DOMContentLoaded', () => {
     const playBtn = document.getElementById('play-btn');
     const loadingSection = document.querySelector('.loading-section');
 
-    const backendUrl = 'https://twitch-clip-downloader-backend.onrender.com';
+    // Try to use localhost if backend is running locally, otherwise use the deployed version
+    const backendUrl = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
+        ? 'http://localhost:3000' 
+        : 'https://twitch-clip-downloader-backend.onrender.com';
+    
+    console.log('Using backend URL:', backendUrl);
+    
     let wavesurfer = null;
     let selectedRegion = { start: 0, end: 0 };
 
     getClipBtn.addEventListener('click', async () => {
-        const url = twitchUrlInput.value;
+        const url = twitchUrlInput.value.trim();
         if (!url) {
             alert('Please enter a Twitch clip URL.');
             return;
         }
 
+        console.log('Processing URL:', url);
+        
         editorSection.style.display = 'none';
         loadingSection.style.display = 'block';
 
         // Clean up previous wavesurfer instance
         if (wavesurfer) {
-            wavesurfer.destroy();
+            try {
+                wavesurfer.destroy();
+            } catch (e) {
+                console.warn('Error destroying previous wavesurfer:', e);
+            }
             wavesurfer = null;
         }
 
         try {
+            console.log('Fetching clip URL from backend...');
             const response = await fetch(`${backendUrl}/get-clip-url`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ url })
             });
 
+            console.log('Response status:', response.status);
+
             if (response.ok) {
                 const data = await response.json();
+                console.log('Received data:', data);
                 
-                // Set up video element
+                if (!data.clipUrl) {
+                    throw new Error('No clip URL received from backend');
+                }
+
+                // Set up video element first
                 video.src = data.clipUrl;
-                video.crossOrigin = 'anonymous';
+                video.load();
+                
+                console.log('Creating WaveSurfer instance...');
                 
                 // Create wavesurfer instance
                 wavesurfer = WaveSurfer.create({
@@ -89,35 +120,27 @@ document.addEventListener('DOMContentLoaded', () => {
                     barRadius: 1,
                     responsive: true,
                     height: 100,
+                    normalize: true,
                     plugins: [
-                        WaveSurfer.Timeline.create({
-                            container: '#wave-timeline',
-                            height: 20,
-                            timeInterval: 1,
-                            primaryLabelInterval: 5,
-                            style: {
-                                fontSize: '10px',
-                                color: '#fff'
-                            }
-                        }),
-                        WaveSurfer.Regions.create()
+                        WaveSurfer.regions.create(),
                     ]
                 });
 
-                // Load the audio from the video URL
-                await wavesurfer.load(data.clipUrl);
+                console.log('WaveSurfer instance created, loading audio...');
+
+                // Load the audio
+                wavesurfer.load(data.clipUrl);
 
                 wavesurfer.on('ready', () => {
+                    console.log('WaveSurfer ready');
                     const duration = wavesurfer.getDuration();
-                    
-                    // Clear any existing regions
-                    wavesurfer.regions.clear();
+                    console.log('Audio duration:', duration);
                     
                     // Add initial region covering the entire duration
-                    const region = wavesurfer.regions.addRegion({
+                    const region = wavesurfer.plugins[0].addRegion({
                         start: 0,
                         end: duration,
-                        color: 'rgba(100, 65, 165, 0.2)',
+                        color: 'rgba(100, 65, 165, 0.3)',
                         drag: true,
                         resize: true,
                     });
@@ -128,29 +151,44 @@ document.addEventListener('DOMContentLoaded', () => {
                     videoContainer.style.display = 'block';
                     editorSection.style.display = 'block';
                     loadingSection.style.display = 'none';
+                    
+                    console.log('Editor ready');
                 });
 
                 // Handle region updates
                 wavesurfer.on('region-updated', (region) => {
                     selectedRegion.start = region.start;
                     selectedRegion.end = region.end;
+                    console.log('Region updated:', selectedRegion);
                 });
 
                 // Handle errors
                 wavesurfer.on('error', (error) => {
                     console.error('Wavesurfer error:', error);
-                    alert('Error loading audio waveform. Please try again.');
+                    alert('Error loading audio waveform. The clip might not support audio extraction.');
                     loadingSection.style.display = 'none';
+                });
+
+                // Handle loading
+                wavesurfer.on('loading', (percent) => {
+                    console.log('Loading audio:', percent + '%');
                 });
 
             } else {
                 const errorText = await response.text();
-                alert(`Error: ${errorText}`);
+                console.error('Backend error:', errorText);
+                alert(`Backend Error: ${errorText}`);
                 loadingSection.style.display = 'none';
             }
         } catch (error) {
-            console.error('Error getting clip URL:', error);
-            alert('An error occurred while getting the clip URL.');
+            console.error('Detailed error:', error);
+            
+            if (error.name === 'TypeError' && error.message.includes('fetch')) {
+                alert('Cannot connect to backend server. Please check if the backend is running.');
+            } else {
+                alert(`An error occurred: ${error.message}`);
+            }
+            
             loadingSection.style.display = 'none';
         }
     });
@@ -158,11 +196,13 @@ document.addEventListener('DOMContentLoaded', () => {
     playBtn.addEventListener('click', () => {
         if (wavesurfer && wavesurfer.isReady) {
             wavesurfer.playPause();
+        } else {
+            console.warn('WaveSurfer not ready');
         }
     });
 
     downloadBtn.addEventListener('click', async () => {
-        const url = twitchUrlInput.value;
+        const url = twitchUrlInput.value.trim();
         if (!url) {
             alert('Please enter a Twitch clip URL.');
             return;
@@ -173,6 +213,7 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
+        console.log('Downloading with region:', selectedRegion);
         loadingSection.style.display = 'block';
 
         try {
@@ -197,8 +238,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 a.click();
                 window.URL.revokeObjectURL(downloadUrl);
                 document.body.removeChild(a);
+                console.log('Download completed');
             } else {
                 const errorText = await response.text();
+                console.error('Download error:', errorText);
                 alert(`Error: ${errorText}`);
             }
         } catch (error) {

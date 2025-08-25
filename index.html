@@ -5,9 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Twitch Clip to MP3</title>
     <link rel="stylesheet" href="style.css">
-    <script src="https://unpkg.com/wavesurfer.js@7/dist/wavesurfer.min.js"></script>
-    <script src="https://unpkg.com/wavesurfer.js@7/dist/plugins/regions.min.js"></script>
-    <script src="https://unpkg.com/wavesurfer.js@7/dist/plugins/timeline.min.js"></script>
 </head>
 <body>
     <div class="container">
@@ -24,10 +21,9 @@
         </div>
         <div class="editor-section" style="display: none;">
             <div class="video-container" style="display: none;">
-                <video id="clip-video" playsinline></video>
+                <video id="clip-video" playsinline controls></video>
             </div>
             <div id="waveform"></div>
-            <div id="wave-timeline"></div>
             <div class="controls">
                 <button id="play-btn">Play / Pause</button>
                 <button id="download-btn" data-i18n-key="download">Download MP3</button>
@@ -37,6 +33,21 @@
             <p data-i18n-key="loading">Downloading and converting, please wait...</p>
         </div>
     </div>
+
+    <!-- Load WaveSurfer.js v7 -->
+    <script src="https://unpkg.com/wavesurfer.js@7/dist/wavesurfer.min.js"></script>
+    <script src="https://unpkg.com/wavesurfer.js@7/dist/plugins/regions.min.js"></script>
+    <script>
+        // Check if libraries loaded
+        window.addEventListener('load', () => {
+            if (typeof WaveSurfer === 'undefined') {
+                console.error('WaveSurfer failed to load');
+                document.body.innerHTML = '<div style="color: red; text-align: center; padding: 50px;">Error: WaveSurfer.js failed to load. Please check your internet connection and refresh the page.</div>';
+            } else {
+                console.log('WaveSurfer loaded successfully');
+            }
+        });
+    </script>
     <script src="script.js"></script>
 </body>
 </html>
