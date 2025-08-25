@@ -14,7 +14,7 @@ const translations = {
         getClip: 'Get Clip',
         download: 'Download MP3',
         loading: 'Downloading and converting, please wait...',
-        playPause: 'Play / Region Info',
+        playPause: 'Play / Pause',
     },
     jp: {
         title: 'TwitchクリップMP3ダウンローダー',
@@ -22,7 +22,7 @@ const translations = {
         getClip: 'クリップを取得',
         download: 'MP3をダウンロード',
         loading: 'ダウンロードと変換中です、お待ちください...',
-        playPause: '再生/リージョン情報',
+        playPause: '再生/一時停止',
     }
 };
 
@@ -52,8 +52,24 @@ const video = document.getElementById('clip-video');
 const downloadBtn = document.getElementById('download-btn');
 const playBtn = document.getElementById('play-btn');
 const loadingSection = document.querySelector('.loading-section');
-const regionStart = document.getElementById('region-start');
-const regionEnd = document.getElementById('region-end');
+
+// Add time input fields for simple time selection
+const timeInputsContainer = document.createElement('div');
+timeInputsContainer.className = 'time-inputs';
+timeInputsContainer.innerHTML = `
+    <div class="time-input-group">
+        <label for="start-time">Start Time (seconds):</label>
+        <input type="number" id="start-time" min="0" step="0.1" value="0">
+    </div>
+    <div class="time-input-group">
+        <label for="end-time">End Time (seconds):</label>
+        <input type="number" id="end-time" min="0" step="0.1" value="30">
+    </div>
+`;
+document.querySelector('.controls').insertBefore(timeInputsContainer, document.querySelector('.controls').firstChild);
+
+const startTimeInput = document.getElementById('start-time');
+const endTimeInput = document.getElementById('end-time');
 
 // Debug: Check if all elements are found
 console.log('DOM elements check:');
@@ -62,6 +78,8 @@ console.log('- getClipBtn:', !!getClipBtn);
 console.log('- video:', !!video);
 console.log('- downloadBtn:', !!downloadBtn);
 console.log('- playBtn:', !!playBtn);
+console.log('- startTimeInput:', !!startTimeInput);
+console.log('- endTimeInput:', !!endTimeInput);
 
 const backendUrl = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
     ? 'http://localhost:3000' 
@@ -69,19 +87,17 @@ const backendUrl = window.location.hostname === 'localhost' || window.location.h
 
 console.log('Using backend URL:', backendUrl);
 
-let wavesurfer = null;
-let selectedRegion = { start: 0, end: 0 };
+let selectedRegion = { start: 0, end: 30 };
 
 function updateRegionDisplay() {
-    if (regionStart && regionEnd) {
-        regionStart.textContent = selectedRegion.start.toFixed(2);
-        regionEnd.textContent = selectedRegion.end.toFixed(2);
+    if (startTimeInput && endTimeInput) {
+        startTimeInput.value = selectedRegion.start;
+        endTimeInput.value = selectedRegion.end;
     }
 }
 
 // Set up button event listeners
 getClipBtn.addEventListener('click', async () => {
-    console.log('Get Clip button clicked!');
     const url = twitchUrlInput.value.trim();
     if (!url) {
         alert('Please enter a Twitch clip URL.');
@@ -92,12 +108,6 @@ getClipBtn.addEventListener('click', async () => {
     
     editorSection.style.display = 'none';
     loadingSection.style.display = 'block';
-
-    // Clean up previous instance
-    if (wavesurfer) {
-        wavesurfer.destroy();
-        wavesurfer = null;
-    }
 
     try {
         console.log('Fetching clip URL from backend...');
@@ -117,179 +127,31 @@ getClipBtn.addEventListener('click', async () => {
                 throw new Error('No clip URL received from backend');
             }
 
-            // Set up video element and test the URL
+            // Set up video element
             video.src = data.clipUrl;
-            video.crossOrigin = 'anonymous'; // Try to handle CORS
             video.load();
             
-            // Test if the URL is accessible
-            console.log('Testing URL accessibility...');
-            fetch(data.clipUrl, { method: 'HEAD', mode: 'no-cors' })
-                .then(() => console.log('URL appears to be accessible'))
-                .catch(e => console.warn('URL accessibility test failed:', e));
-
-            console.log('Creating WaveSurfer instance...');
-            console.log('Available WaveSurfer properties:', Object.getOwnPropertyNames(WaveSurfer));
-            console.log('WaveSurfer.regions available:', !!WaveSurfer.regions);
-            
-            // Check if regions plugin is available
-            if (!WaveSurfer.regions) {
-                throw new Error('Regions plugin is not available. Please refresh the page and try again.');
-            }
-            
-            // Create WaveSurfer instance with proper configuration
-            wavesurfer = WaveSurfer.create({
-                container: '#waveform',
-                waveColor: '#ddd',
-                progressColor: '#6441a5',
-                cursorColor: '#fff',
-                barWidth: 2,
-                barRadius: 1,
-                responsive: true,
-                height: 100,
-                normalize: true,
-                backend: 'WebAudio',
-                mediaControls: false,
-                plugins: [
-                    WaveSurfer.regions.create({
-                        regions: [],
-                        dragSelection: {
-                            slop: 5
-                        }
-                    })
-                ]
-            });
-
-            // Instead of trying to load the video directly (which causes CORS issues),
-            // we'll request the backend to proxy the audio data for us
-            console.log('Requesting backend to proxy audio data to avoid CORS...');
-            
-            try {
-                // The backend already has the capability to fetch clip data
-                // We'll request it to return the audio data as a blob
-                const audioResponse = await fetch(`${backendUrl}/proxy-audio`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ 
-                        clipUrl: data.clipUrl,
-                        action: 'get-audio-data'
-                    })
-                });
+            // Wait for video metadata to load, then set up time inputs
+            video.addEventListener('loadedmetadata', () => {
+                console.log('Video metadata loaded, duration:', video.duration);
                 
-                if (audioResponse.ok) {
-                    const audioBlob = await audioResponse.blob();
-                    const audioUrl = URL.createObjectURL(audioBlob);
-                    
-                    console.log('Audio data received from backend, loading into WaveSurfer...');
-                    wavesurfer.load(audioUrl);
-                } else {
-                    throw new Error('Backend could not proxy audio data');
-                }
-            } catch (audioError) {
-                console.warn('Could not get audio data from backend, using fallback approach:', audioError);
-                
-                // Fallback: Create a synthetic waveform for region selection
-                // This allows users to still select regions even without the actual audio
-                console.log('Creating synthetic waveform for region selection...');
-                
-                // Estimate duration (most Twitch clips are 15-60 seconds)
-                const estimatedDuration = 30; // 30 seconds default
-                
-                // Create a minimal audio file that WaveSurfer can handle
-                const silentAudio = 'data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSuBzvLZiTYIG2m98OScTgwOUarm7blmGgU7k9n1unEiBC13yO/eizEIHWq+8+OWT';
-                
-                console.log('Loading synthetic audio into WaveSurfer...');
-                wavesurfer.load(silentAudio);
-                
-                // Store the estimated duration for region calculations
-                selectedRegion = { start: 0, end: estimatedDuration };
-                
-                // Show a note about the fallback
-                console.log('Using synthetic waveform - actual audio not available due to CORS');
-            }
-
-            // Show the editor section
-            videoContainer.style.display = 'none';
-            editorSection.style.display = 'block';
-            loadingSection.style.display = 'none';
-            
-            console.log('WaveSurfer instance ready');
-
-            // Set up WaveSurfer event handlers
-            wavesurfer.on('ready', () => {
-                console.log('WaveSurfer ready');
-                const duration = wavesurfer.getDuration();
-                console.log('Audio duration:', duration);
-                
-                // Clear any existing regions
-                wavesurfer.clearRegions();
-                
-                // Add initial region covering the entire duration
-                const region = wavesurfer.addRegion({
-                    start: 0,
-                    end: duration,
-                    color: 'rgba(100, 65, 165, 0.3)',
-                    drag: true,
-                    resize: true,
-                });
-
-                selectedRegion = { start: 0, end: duration };
+                // Set initial time range
+                selectedRegion.start = 0;
+                selectedRegion.end = Math.floor(video.duration);
                 updateRegionDisplay();
                 
                 // Show the editor section
-                videoContainer.style.display = 'none';
+                videoContainer.style.display = 'block';
                 editorSection.style.display = 'block';
                 loadingSection.style.display = 'none';
                 
-                console.log('Editor ready with waveform');
+                console.log('Editor ready');
             });
-
-            // Handle region updates
-            wavesurfer.on('region-updated', (region) => {
-                selectedRegion.start = region.start;
-                selectedRegion.end = region.end;
-                updateRegionDisplay();
-                console.log('Region updated:', selectedRegion);
-            });
-
-            // Handle region creation from drag selection
-            wavesurfer.on('region-created', (region) => {
-                // Remove other regions to keep only one active
-                const regions = Object.values(wavesurfer.regions.list);
-                regions.forEach(r => {
-                    if (r !== region) r.remove();
-                });
-                
-                selectedRegion.start = region.start;
-                selectedRegion.end = region.end;
-                updateRegionDisplay();
-                console.log('Region created:', selectedRegion);
-            });
-
-            // Handle errors with more detail
-            wavesurfer.on('error', (error) => {
-                console.error('Wavesurfer error details:', error);
-                console.error('Error type:', typeof error);
-                console.error('Error message:', error.message || error);
-                
-                let errorMessage = 'Error loading audio waveform.';
-                if (error.message) {
-                    if (error.message.includes('CORS')) {
-                        errorMessage = 'CORS error: Cannot load audio due to cross-origin restrictions.';
-                    } else if (error.message.includes('decode')) {
-                        errorMessage = 'Audio decode error: The audio format might not be supported.';
-                    } else {
-                        errorMessage = `Audio loading error: ${error.message}`;
-                    }
-                }
-                
-                alert(errorMessage);
+            
+            video.addEventListener('error', (videoError) => {
+                console.error('Video loading error:', videoError);
+                alert('Error loading video. You can still download the full clip.');
                 loadingSection.style.display = 'none';
-            });
-
-            // Handle loading progress
-            wavesurfer.on('loading', (percent) => {
-                console.log('Loading audio:', percent + '%');
             });
 
         } else {
@@ -317,43 +179,34 @@ getClipBtn.addEventListener('click', async () => {
     }
 });
 
-// Verify event listeners are attached
-console.log('Event listeners attached:');
-console.log('- getClipBtn click listener:', !!getClipBtn.onclick);
-console.log('- playBtn click listener:', !!playBtn.onclick);
-console.log('- downloadBtn click listener:', !!downloadBtn.onclick);
-
 playBtn.addEventListener('click', () => {
-    console.log('Play button clicked!');
-    if (wavesurfer && wavesurfer.isReady()) {
-        // Check if we have real audio or synthetic
-        const duration = wavesurfer.getDuration();
-        if (duration > 1) { // Real audio has meaningful duration
-            wavesurfer.playPause();
+    if (video.readyState >= 2) { // HAVE_CURRENT_DATA
+        if (video.paused) {
+            video.play();
         } else {
-            // Synthetic audio - show region info instead
-            const regionInfo = `Selected region: ${selectedRegion.start.toFixed(2)}s - ${selectedRegion.end.toFixed(2)}s (Duration: ${(selectedRegion.end - selectedRegion.start).toFixed(2)}s)`;
-            alert(`Audio preview not available.\n\n${regionInfo}\n\nYou can still download the trimmed MP3 with the selected region.`);
+            video.pause();
         }
     } else {
-        alert('Audio not ready yet. Please wait for the waveform to load.');
+        alert('Video not ready yet. Please wait for the clip to load.');
     }
 });
 
 downloadBtn.addEventListener('click', async () => {
-    console.log('Download button clicked!');
     const url = twitchUrlInput.value.trim();
     if (!url) {
         alert('Please enter a Twitch clip URL.');
         return;
     }
 
-    if (selectedRegion.start >= selectedRegion.end) {
-        alert('Please select a valid region to trim.');
+    const start = parseFloat(startTimeInput.value);
+    const end = parseFloat(endTimeInput.value);
+
+    if (start >= end) {
+        alert('Start time must be less than end time.');
         return;
     }
 
-    console.log('Downloading with region:', selectedRegion);
+    console.log('Downloading with time range:', { start, end });
     loadingSection.style.display = 'block';
 
     try {
@@ -362,8 +215,8 @@ downloadBtn.addEventListener('click', async () => {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ 
                 url, 
-                start: selectedRegion.start, 
-                end: selectedRegion.end 
+                start, 
+                end 
             })
         });
 
