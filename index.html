@@ -24,6 +24,9 @@
                 <video id="clip-video" playsinline controls></video>
             </div>
             <div id="waveform"></div>
+            <div class="region-info">
+                <span>Selection: <span id="region-start">0.00</span>s - <span id="region-end">0.00</span>s</span>
+            </div>
             <div class="controls">
                 <button id="play-btn">Play / Pause</button>
                 <button id="download-btn" data-i18n-key="download">Download MP3</button>
@@ -34,18 +37,17 @@
         </div>
     </div>
 
-    <!-- WaveSurfer.js v7 - Correct CDN URLs -->
-    <script src="https://unpkg.com/wavesurfer.js@7"></script>
-    <script src="https://unpkg.com/wavesurfer.js@7/dist/plugins/regions.esm.js"></script>
+    <!-- Use a working WaveSurfer version with reliable plugin support -->
+    <script src="https://unpkg.com/wavesurfer.js@6.6.4/dist/wavesurfer.min.js"></script>
+    <script src="https://unpkg.com/wavesurfer.js@6.6.4/dist/plugin/wavesurfer.regions.min.js"></script>
     <script>
-        // Check if libraries loaded
-        window.addEventListener('load', () => {
+        // Verify loading
+        document.addEventListener('DOMContentLoaded', () => {
             if (typeof WaveSurfer === 'undefined') {
-                console.error('WaveSurfer failed to load');
-                alert('WaveSurfer.js library failed to load. Please check your internet connection.');
+                alert('WaveSurfer.js failed to load. Please refresh the page.');
             } else {
-                console.log('WaveSurfer v7 loaded successfully');
-                console.log('Regions plugin available:', WaveSurfer.Regions);
+                console.log('WaveSurfer loaded:', !!WaveSurfer);
+                console.log('Regions plugin loaded:', !!WaveSurfer.regions);
             }
         });
     </script>
