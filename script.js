@@ -137,7 +137,20 @@ getClipBtn.addEventListener('click', async () => {
                 throw new Error('Regions plugin is not available. Please refresh the page and try again.');
             }
             
-            // Create wavesurfer instance using v6 syntax (stable)
+            // WaveSurfer instance will be created in the synthetic waveform section
+
+            // Instead of trying to load the video directly (which causes CORS issues),
+            // we'll create a simple waveform representation and let the user select regions
+            console.log('Creating synthetic waveform for region selection...');
+            
+            // Create a simple waveform using WaveSurfer's built-in methods
+            // Since we can't load the actual audio due to CORS, we'll create a placeholder
+            let duration = 15; // Default duration, will be updated when we get actual duration
+            
+            // Create a simple waveform by loading a silent audio file or using a different approach
+            // For now, let's try to create a minimal waveform that allows region selection
+            
+            // Create wavesurfer with a simple configuration that doesn't require audio loading
             wavesurfer = WaveSurfer.create({
                 container: '#waveform',
                 waveColor: '#ddd',
@@ -148,7 +161,7 @@ getClipBtn.addEventListener('click', async () => {
                 responsive: true,
                 height: 100,
                 normalize: true,
-                backend: 'WebAudio', // Use WebAudio backend for better compatibility
+                backend: 'WebAudio',
                 mediaControls: false,
                 plugins: [
                     WaveSurfer.regions.create({
@@ -159,28 +172,8 @@ getClipBtn.addEventListener('click', async () => {
                     })
                 ]
             });
-
-            // Instead of trying to load the video directly (which causes CORS issues),
-            // we'll create a simple waveform representation and let the user select regions
-            console.log('Creating synthetic waveform for region selection...');
             
-            // Create a synthetic waveform since we can't load the actual audio due to CORS
-            const duration = 15; // Default duration, will be updated when we get actual duration
-            const sampleRate = 44100;
-            const samples = duration * sampleRate;
-            
-            // Generate a simple waveform pattern
-            const audioData = new Float32Array(samples);
-            for (let i = 0; i < samples; i++) {
-                // Create a simple wave pattern
-                const t = i / sampleRate;
-                audioData[i] = Math.sin(2 * Math.PI * 440 * t) * 0.1; // 440Hz sine wave
-            }
-            
-            // Load the synthetic audio data
-            wavesurfer.loadDecodedBuffer(audioData);
-            
-            // Alternative: Try to get the actual duration from the backend
+            // Try to get the actual duration from the backend
             try {
                 console.log('Requesting audio metadata from backend...');
                 const metadataResponse = await fetch(`${backendUrl}/get-audio-metadata`, {
@@ -193,19 +186,109 @@ getClipBtn.addEventListener('click', async () => {
                     const metadata = await metadataResponse.json();
                     if (metadata.duration) {
                         console.log('Got actual duration from backend:', metadata.duration);
-                        // Update the waveform with actual duration
-                        const actualSamples = metadata.duration * sampleRate;
-                        const actualAudioData = new Float32Array(actualSamples);
-                        for (let i = 0; i < actualSamples; i++) {
-                            const t = i / sampleRate;
-                            actualAudioData[i] = Math.sin(2 * Math.PI * 440 * t) * 0.1;
-                        }
-                        wavesurfer.loadDecodedBuffer(actualAudioData);
+                        duration = metadata.duration;
                     }
                 }
             } catch (metadataError) {
                 console.warn('Could not get metadata from backend, using default duration:', metadataError);
             }
+            
+            // Create a simple placeholder waveform using a minimal audio file
+            // We'll use a very short silent audio file that WaveSurfer can handle
+            try {
+                // Load a minimal silent audio file
+                wavesurfer.load('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSuBzvLZiTYIG2m98OScTgwOUarm7blmGgU7k9n1unEiBC13yO/eizEIHWq+8+OWT');
+            } catch (wavError) {
+                console.warn('Could not load minimal audio, creating empty waveform:', wavError);
+                // If that fails, just create an empty waveform container
+                // The regions plugin should still work for selection
+            }
+            
+            // Add a fallback: create a visual representation manually if audio loading fails
+            setTimeout(() => {
+                if (!wavesurfer.isReady()) {
+                    console.log('Audio loading failed, creating manual visual representation...');
+                    // Create a simple visual bar representation
+                    const waveformContainer = document.getElementById('waveform');
+                    if (waveformContainer) {
+                        waveformContainer.innerHTML = `
+                            <div style="width: 100%; height: 100px; background: #333; border: 1px solid #444; border-radius: 5px; position: relative;">
+                                <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; display: flex; align-items: center; justify-content: center; color: #ccc; font-size: 14px;">
+                                    <div style="text-align: center;">
+                                        <div style="margin-bottom: 10px;">Waveform Preview (CORS Limited)</div>
+                                        <div style="font-size: 12px; color: #888;">Duration: ${duration}s | Drag to select regions</div>
+                                        <div style="margin-top: 10px; padding: 10px; background: #444; border-radius: 3px; font-size: 11px;">
+                                            You can still select time regions and download the trimmed MP3
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                        
+                        // Create a simple region selector
+                        const regionSelector = document.createElement('div');
+                        regionSelector.style.cssText = `
+                            position: absolute; top: 0; left: 0; right: 0; bottom: 0; 
+                            cursor: crosshair; background: transparent;
+                        `;
+                        
+                        let isSelecting = false;
+                        let startX = 0;
+                        let selectionBox = null;
+                        
+                        regionSelector.addEventListener('mousedown', (e) => {
+                            isSelecting = true;
+                            startX = e.offsetX;
+                            selectionBox = document.createElement('div');
+                            selectionBox.style.cssText = `
+                                position: absolute; top: 0; bottom: 0; 
+                                background: rgba(100, 65, 165, 0.3); border: 1px solid #6441a5;
+                                left: ${startX}px; width: 0;
+                            `;
+                            waveformContainer.appendChild(selectionBox);
+                        });
+                        
+                        regionSelector.addEventListener('mousemove', (e) => {
+                            if (isSelecting && selectionBox) {
+                                const currentX = e.offsetX;
+                                const left = Math.min(startX, currentX);
+                                const width = Math.abs(currentX - startX);
+                                selectionBox.style.left = left + 'px';
+                                selectionBox.style.width = width + 'px';
+                            }
+                        });
+                        
+                        regionSelector.addEventListener('mouseup', () => {
+                            if (isSelecting && selectionBox) {
+                                isSelecting = false;
+                                const containerWidth = waveformContainer.offsetWidth;
+                                const startPercent = startX / containerWidth;
+                                const endPercent = (startX + parseInt(selectionBox.style.width)) / containerWidth;
+                                
+                                selectedRegion.start = startPercent * duration;
+                                selectedRegion.end = Math.min(endPercent * duration, duration);
+                                updateRegionDisplay();
+                                
+                                // Remove selection box after a moment
+                                setTimeout(() => {
+                                    if (selectionBox && selectionBox.parentNode) {
+                                        selectionBox.parentNode.removeChild(selectionBox);
+                                    }
+                                }, 1000);
+                            }
+                        });
+                        
+                        waveformContainer.appendChild(regionSelector);
+                        
+                        // Show the editor section
+                        videoContainer.style.display = 'none';
+                        editorSection.style.display = 'block';
+                        loadingSection.style.display = 'none';
+                        
+                        console.log('Manual visual representation ready');
+                    }
+                }
+            }, 2000); // Wait 2 seconds for audio loading to complete or fail
 
             wavesurfer.on('ready', () => {
                 console.log('WaveSurfer ready');
