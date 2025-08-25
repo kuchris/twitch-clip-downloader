@@ -110,7 +110,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 console.log('Creating WaveSurfer instance...');
                 
-                // Create wavesurfer instance
+                // Create wavesurfer instance using v6 syntax
                 wavesurfer = WaveSurfer.create({
                     container: '#waveform',
                     waveColor: '#ddd',
@@ -122,7 +122,15 @@ document.addEventListener('DOMContentLoaded', () => {
                     height: 100,
                     normalize: true,
                     plugins: [
-                        WaveSurfer.regions.create(),
+                        WaveSurfer.regions.create({
+                            regions: [],
+                            dragSelection: {
+                                slop: 5
+                            }
+                        }),
+                        WaveSurfer.timeline.create({
+                            container: '#wave-timeline'
+                        })
                     ]
                 });
 
@@ -136,8 +144,11 @@ document.addEventListener('DOMContentLoaded', () => {
                     const duration = wavesurfer.getDuration();
                     console.log('Audio duration:', duration);
                     
+                    // Clear any existing regions
+                    wavesurfer.clearRegions();
+                    
                     // Add initial region covering the entire duration
-                    const region = wavesurfer.plugins[0].addRegion({
+                    const region = wavesurfer.addRegion({
                         start: 0,
                         end: duration,
                         color: 'rgba(100, 65, 165, 0.3)',
