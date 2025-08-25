@@ -2,9 +2,9 @@
 console.log('Script loading - WaveSurfer available:', typeof WaveSurfer);
 console.log('Regions plugin available:', typeof WaveSurfer?.regions);
 
-// Wait for DOM to be ready before setting up event listeners
-document.addEventListener('DOMContentLoaded', () => {
-    console.log('DOM ready, setting up application...');
+// Main application initialization function
+function initializeApp() {
+    console.log('Initializing application...');
 
 // --- i18n --- //
 const translations = {
@@ -39,6 +39,7 @@ function setLanguage(lang) {
     });
 }
 
+// Set up language switcher event listeners
 document.getElementById('lang-en').addEventListener('click', () => setLanguage('en'));
 document.getElementById('lang-jp').addEventListener('click', () => setLanguage('jp'));
 
@@ -78,7 +79,9 @@ function updateRegionDisplay() {
     }
 }
 
+// Set up button event listeners
 getClipBtn.addEventListener('click', async () => {
+    console.log('Get Clip button clicked!');
     const url = twitchUrlInput.value.trim();
     if (!url) {
         alert('Please enter a Twitch clip URL.');
@@ -279,7 +282,14 @@ getClipBtn.addEventListener('click', async () => {
     }
 });
 
+// Verify event listeners are attached
+console.log('Event listeners attached:');
+console.log('- getClipBtn click listener:', !!getClipBtn.onclick);
+console.log('- playBtn click listener:', !!playBtn.onclick);
+console.log('- downloadBtn click listener:', !!downloadBtn.onclick);
+
 playBtn.addEventListener('click', () => {
+    console.log('Play button clicked!');
     if (wavesurfer) {
         wavesurfer.playPause();
     } else {
@@ -288,6 +298,7 @@ playBtn.addEventListener('click', () => {
 });
 
 downloadBtn.addEventListener('click', async () => {
+    console.log('Download button clicked!');
     const url = twitchUrlInput.value.trim();
     if (!url) {
         alert('Please enter a Twitch clip URL.');
@@ -347,4 +358,7 @@ downloadBtn.addEventListener('click', async () => {
 setLanguage('en');
 
 console.log('Application setup complete!');
-}); // End of DOMContentLoaded
+} // End of initializeApp function
+
+// Expose the initialization function globally
+window.initializeApp = initializeApp;

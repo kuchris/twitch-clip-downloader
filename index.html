@@ -69,15 +69,20 @@
                 }
                 
                 // Now load our main script
-                return loadScript('script.js');
+                await loadScript('script.js');
+                
+                // Initialize the application after everything is loaded
+                if (window.initializeApp) {
+                    window.initializeApp();
+                }
             } catch (error) {
                 console.error('Error loading WaveSurfer:', error);
                 alert('Failed to load WaveSurfer. Please refresh the page.');
             }
         }
 
-        // Start loading when DOM is ready
-        document.addEventListener('DOMContentLoaded', loadWaveSurfer);
+        // Start loading immediately
+        loadWaveSurfer();
     </script>
 </body>
 </html>
