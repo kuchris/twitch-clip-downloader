@@ -1,13 +1,4 @@
 document.addEventListener('DOMContentLoaded', () => {
-    // Check if WaveSurfer is loaded
-    if (typeof WaveSurfer === 'undefined') {
-        console.error('WaveSurfer.js is not loaded!');
-        alert('WaveSurfer.js library failed to load. Please check your internet connection.');
-        return;
-    }
-
-    console.log('WaveSurfer loaded successfully:', WaveSurfer);
-
     // --- i18n --- //
     const translations = {
         en: {
@@ -53,8 +44,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const downloadBtn = document.getElementById('download-btn');
     const playBtn = document.getElementById('play-btn');
     const loadingSection = document.querySelector('.loading-section');
+    const regionStart = document.getElementById('region-start');
+    const regionEnd = document.getElementById('region-end');
 
-    // Try to use localhost if backend is running locally, otherwise use the deployed version
     const backendUrl = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
         ? 'http://localhost:3000' 
         : 'https://twitch-clip-downloader-backend.onrender.com';
@@ -63,6 +55,13 @@ document.addEventListener('DOMContentLoaded', () => {
     
     let wavesurfer = null;
     let selectedRegion = { start: 0, end: 0 };
+
+    function updateRegionDisplay() {
+        if (regionStart && regionEnd) {
+            regionStart.textContent = selectedRegion.start.toFixed(2);
+            regionEnd.textContent = selectedRegion.end.toFixed(2);
+        }
+    }
 
     getClipBtn.addEventListener('click', async () => {
         const url = twitchUrlInput.value.trim();
@@ -76,13 +75,9 @@ document.addEventListener('DOMContentLoaded', () => {
         editorSection.style.display = 'none';
         loadingSection.style.display = 'block';
 
-        // Clean up previous wavesurfer instance
+        // Clean up previous instance
         if (wavesurfer) {
-            try {
-                wavesurfer.destroy();
-            } catch (e) {
-                console.warn('Error destroying previous wavesurfer:', e);
-            }
+            wavesurfer.destroy();
             wavesurfer = null;
         }
 
@@ -104,13 +99,13 @@ document.addEventListener('DOMContentLoaded', () => {
                     throw new Error('No clip URL received from backend');
                 }
 
-                // Set up video element first
+                // Set up video element
                 video.src = data.clipUrl;
                 video.load();
                 
                 console.log('Creating WaveSurfer instance...');
                 
-                // Create wavesurfer instance using v6 syntax
+                // Create wavesurfer instance using v6 syntax (stable)
                 wavesurfer = WaveSurfer.create({
                     container: '#waveform',
                     waveColor: '#ddd',
@@ -127,9 +122,6 @@ document.addEventListener('DOMContentLoaded', () => {
                             dragSelection: {
                                 slop: 5
                             }
-                        }),
-                        WaveSurfer.timeline.create({
-                            container: '#wave-timeline'
                         })
                     ]
                 });
@@ -157,6 +149,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     });
 
                     selectedRegion = { start: 0, end: duration };
+                    updateRegionDisplay();
 
                     // Show the editor section
                     videoContainer.style.display = 'block';
@@ -170,17 +163,32 @@ document.addEventListener('DOMContentLoaded', () => {
                 wavesurfer.on('region-updated', (region) => {
                     selectedRegion.start = region.start;
                     selectedRegion.end = region.end;
+                    updateRegionDisplay();
                     console.log('Region updated:', selectedRegion);
+                });
+
+                // Handle region creation from drag selection
+                wavesurfer.on('region-created', (region) => {
+                    // Remove other regions to keep only one active
+                    const regions = Object.values(wavesurfer.regions.list);
+                    regions.forEach(r => {
+                        if (r !== region) r.remove();
+                    });
+                    
+                    selectedRegion.start = region.start;
+                    selectedRegion.end = region.end;
+                    updateRegionDisplay();
+                    console.log('Region created:', selectedRegion);
                 });
 
                 // Handle errors
                 wavesurfer.on('error', (error) => {
                     console.error('Wavesurfer error:', error);
-                    alert('Error loading audio waveform. The clip might not support audio extraction.');
+                    alert('Error loading audio waveform. The clip might not support audio extraction or there might be CORS issues.');
                     loadingSection.style.display = 'none';
                 });
 
-                // Handle loading
+                // Handle loading progress
                 wavesurfer.on('loading', (percent) => {
                     console.log('Loading audio:', percent + '%');
                 });
@@ -205,7 +213,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     playBtn.addEventListener('click', () => {
-        if (wavesurfer && wavesurfer.isReady) {
+        if (wavesurfer) {
             wavesurfer.playPause();
         } else {
             console.warn('WaveSurfer not ready');
@@ -220,7 +228,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         if (selectedRegion.start >= selectedRegion.end) {
-            alert('Start time must be less than end time.');
+            alert('Please select a valid region to trim.');
             return;
         }
 
@@ -244,7 +252,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 const a = document.createElement('a');
                 a.style.display = 'none';
                 a.href = downloadUrl;
-                a.download = 'clip.mp3';
+                
+                // Create filename with timestamp
+                const now = new Date();
+                const timestamp = now.toISOString().slice(0, 19).replace(/:/g, '-');
+                a.download = `twitch-clip-${timestamp}.mp3`;
+                
                 document.body.appendChild(a);
                 a.click();
                 window.URL.revokeObjectURL(downloadUrl);
