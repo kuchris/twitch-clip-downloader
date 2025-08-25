@@ -15,6 +15,8 @@ const translations = {
         download: 'Download MP3',
         loading: 'Downloading and converting, please wait...',
         playPause: 'Play / Pause',
+        startTime: 'Start Time (seconds):',
+        endTime: 'End Time (seconds):',
     },
     jp: {
         title: 'TwitchクリップMP3ダウンローダー',
@@ -23,6 +25,8 @@ const translations = {
         download: 'MP3をダウンロード',
         loading: 'ダウンロードと変換中です、お待ちください...',
         playPause: '再生/一時停止',
+        startTime: '開始時間（秒）:',
+        endTime: '終了時間（秒）:',
     }
 };
 
@@ -58,11 +62,11 @@ const timeInputsContainer = document.createElement('div');
 timeInputsContainer.className = 'time-inputs';
 timeInputsContainer.innerHTML = `
     <div class="time-input-group">
-        <label for="start-time">Start Time (seconds):</label>
+        <label for="start-time" data-i18n-key="startTime">Start Time (seconds):</label>
         <input type="number" id="start-time" min="0" step="0.1" value="0">
     </div>
     <div class="time-input-group">
-        <label for="end-time">End Time (seconds):</label>
+        <label for="end-time" data-i18n-key="endTime">End Time (seconds):</label>
         <input type="number" id="end-time" min="0" step="0.1" value="30">
     </div>
 `;
@@ -88,13 +92,6 @@ const backendUrl = window.location.hostname === 'localhost' || window.location.h
 console.log('Using backend URL:', backendUrl);
 
 let selectedRegion = { start: 0, end: 30 };
-
-function updateRegionDisplay() {
-    if (startTimeInput && endTimeInput) {
-        startTimeInput.value = selectedRegion.start;
-        endTimeInput.value = selectedRegion.end;
-    }
-}
 
 // Set up button event listeners
 getClipBtn.addEventListener('click', async () => {
@@ -135,10 +132,9 @@ getClipBtn.addEventListener('click', async () => {
             video.addEventListener('loadedmetadata', () => {
                 console.log('Video metadata loaded, duration:', video.duration);
                 
-                // Set initial time range
+                // Set initial time range with validation
                 selectedRegion.start = 0;
-                selectedRegion.end = Math.floor(video.duration);
-                updateRegionDisplay();
+                selectedRegion.end = Math.min(30, video.duration); // Default to 30s or video duration, whichever is smaller
                 
                 // Show the editor section
                 videoContainer.style.display = 'block';
@@ -162,6 +158,12 @@ getClipBtn.addEventListener('click', async () => {
                 if (!isNaN(newTime) && newTime >= 0 && newTime < video.duration) {
                     video.currentTime = newTime;
                     selectedRegion.start = newTime;
+                    
+                    // Ensure end time is not less than start time
+                    if (selectedRegion.end <= newTime) {
+                        selectedRegion.end = Math.min(newTime + 1, video.duration);
+                        endTimeInput.value = selectedRegion.end.toFixed(1);
+                    }
                 }
             });
             
@@ -169,6 +171,15 @@ getClipBtn.addEventListener('click', async () => {
                 const newTime = parseFloat(endTimeInput.value);
                 if (!isNaN(newTime) && newTime > selectedRegion.start && newTime <= video.duration) {
                     selectedRegion.end = newTime;
+                } else {
+                    // Reset to valid value if invalid
+                    if (newTime <= selectedRegion.start) {
+                        endTimeInput.value = (selectedRegion.start + 1).toFixed(1);
+                        selectedRegion.end = selectedRegion.start + 1;
+                    } else if (newTime > video.duration) {
+                        endTimeInput.value = video.duration.toFixed(1);
+                        selectedRegion.end = video.duration;
+                    }
                 }
             });
             
@@ -180,12 +191,24 @@ getClipBtn.addEventListener('click', async () => {
                     startTimeInput.value = newTime.toFixed(1);
                     video.currentTime = newTime;
                     selectedRegion.start = newTime;
+                    
+                    // Ensure end time is not less than start time
+                    if (selectedRegion.end <= newTime) {
+                        selectedRegion.end = Math.min(newTime + 1, video.duration);
+                        endTimeInput.value = selectedRegion.end.toFixed(1);
+                    }
                 } else if (e.key === 'ArrowDown') {
                     e.preventDefault();
                     const newTime = Math.max(parseFloat(startTimeInput.value) - 0.1, 0);
                     startTimeInput.value = newTime.toFixed(1);
                     video.currentTime = newTime;
                     selectedRegion.start = newTime;
+                    
+                    // Ensure end time is not less than start time
+                    if (selectedRegion.end <= newTime) {
+                        selectedRegion.end = Math.min(newTime + 1, video.duration);
+                        endTimeInput.value = selectedRegion.end.toFixed(1);
+                    }
                 }
             });
             
@@ -193,8 +216,10 @@ getClipBtn.addEventListener('click', async () => {
                 if (e.key === 'ArrowUp') {
                     e.preventDefault();
                     const newTime = Math.min(parseFloat(endTimeInput.value) + 0.1, video.duration);
-                    endTimeInput.value = newTime.toFixed(1);
-                    selectedRegion.end = newTime;
+                    if (newTime > selectedRegion.start) {
+                        endTimeInput.value = newTime.toFixed(1);
+                        selectedRegion.end = newTime;
+                    }
                 } else if (e.key === 'ArrowDown') {
                     e.preventDefault();
                     const newTime = Math.max(parseFloat(endTimeInput.value) - 0.1, selectedRegion.start + 0.1);
