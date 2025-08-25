@@ -17,6 +17,7 @@ const translations = {
         playPause: 'Play / Pause',
         startTime: 'Start Time (seconds):',
         endTime: 'End Time (seconds):',
+        replay: 'Replay Selection',
     },
     jp: {
         title: 'TwitchクリップMP3ダウンローダー',
@@ -27,6 +28,7 @@ const translations = {
         playPause: '再生/一時停止',
         startTime: '開始時間（秒）:',
         endTime: '終了時間（秒）:',
+        replay: '選択範囲をリピート',
     }
 };
 
@@ -55,6 +57,7 @@ const videoContainer = document.querySelector('.video-container');
 const video = document.getElementById('clip-video');
 const downloadBtn = document.getElementById('download-btn');
 const playBtn = document.getElementById('play-btn');
+const replayBtn = document.getElementById('replay-btn');
 const loadingSection = document.querySelector('.loading-section');
 
 // Add time input fields for simple time selection
@@ -82,6 +85,7 @@ console.log('- getClipBtn:', !!getClipBtn);
 console.log('- video:', !!video);
 console.log('- downloadBtn:', !!downloadBtn);
 console.log('- playBtn:', !!playBtn);
+console.log('- replayBtn:', !!replayBtn);
 console.log('- startTimeInput:', !!startTimeInput);
 console.log('- endTimeInput:', !!endTimeInput);
 
@@ -105,6 +109,16 @@ getClipBtn.addEventListener('click', async () => {
     
     editorSection.style.display = 'none';
     loadingSection.style.display = 'block';
+
+    // Stop any ongoing replay
+    if (isReplaying) {
+        isReplaying = false;
+        if (replayInterval) {
+            clearInterval(replayInterval);
+            replayInterval = null;
+        }
+        replayBtn.textContent = translations.jp.replay;
+    }
 
     try {
         console.log('Fetching clip URL from backend...');
@@ -268,6 +282,68 @@ playBtn.addEventListener('click', () => {
         }
     } else {
         alert('Video not ready yet. Please wait for the clip to load.');
+    }
+});
+
+// Add replay functionality for selected time range
+let isReplaying = false;
+let replayInterval = null;
+
+replayBtn.addEventListener('click', () => {
+    if (!video.readyState >= 2) {
+        alert('Video not ready yet. Please wait for the clip to load.');
+        return;
+    }
+    
+    if (isReplaying) {
+        // Stop replay
+        isReplaying = false;
+        if (replayInterval) {
+            clearInterval(replayInterval);
+            replayInterval = null;
+        }
+        replayBtn.textContent = translations.jp.replay; // Reset button text
+        video.pause();
+    } else {
+        // Start replay
+        isReplaying = true;
+        replayBtn.textContent = '⏹ Stop Replay';
+        
+        // Function to replay the selected range
+        const replayRange = () => {
+            if (!isReplaying) return;
+            
+            const start = parseFloat(startTimeInput.value);
+            const end = parseFloat(endTimeInput.value);
+            
+            if (start >= end) {
+                alert('Please set a valid time range (start < end).');
+                isReplaying = false;
+                replayBtn.textContent = translations.jp.replay;
+                return;
+            }
+            
+            // Set video to start time and play
+            video.currentTime = start;
+            video.play();
+            
+            // Check if we need to loop back to start
+            const checkTime = () => {
+                if (!isReplaying) return;
+                
+                if (video.currentTime >= end) {
+                    // Loop back to start
+                    video.currentTime = start;
+                    video.play();
+                }
+            };
+            
+            // Check time every 100ms
+            replayInterval = setInterval(checkTime, 100);
+        };
+        
+        // Start the replay
+        replayRange();
     }
 });
 
