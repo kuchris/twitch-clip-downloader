@@ -34,17 +34,18 @@
         </div>
     </div>
 
-    <!-- Load WaveSurfer.js v7 -->
-    <script src="https://unpkg.com/wavesurfer.js@7/dist/wavesurfer.min.js"></script>
-    <script src="https://unpkg.com/wavesurfer.js@7/dist/plugins/regions.min.js"></script>
+    <!-- WaveSurfer.js v7 - Correct CDN URLs -->
+    <script src="https://unpkg.com/wavesurfer.js@7"></script>
+    <script src="https://unpkg.com/wavesurfer.js@7/dist/plugins/regions.esm.js"></script>
     <script>
         // Check if libraries loaded
         window.addEventListener('load', () => {
             if (typeof WaveSurfer === 'undefined') {
                 console.error('WaveSurfer failed to load');
-                document.body.innerHTML = '<div style="color: red; text-align: center; padding: 50px;">Error: WaveSurfer.js failed to load. Please check your internet connection and refresh the page.</div>';
+                alert('WaveSurfer.js library failed to load. Please check your internet connection.');
             } else {
-                console.log('WaveSurfer loaded successfully');
+                console.log('WaveSurfer v7 loaded successfully');
+                console.log('Regions plugin available:', WaveSurfer.Regions);
             }
         });
     </script>
