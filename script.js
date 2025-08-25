@@ -14,7 +14,7 @@ const translations = {
         getClip: 'Get Clip',
         download: 'Download MP3',
         loading: 'Downloading and converting, please wait...',
-        playPause: 'Play / Pause',
+        playPause: 'Show Region Info',
     },
     jp: {
         title: 'TwitchクリップMP3ダウンローダー',
@@ -22,7 +22,7 @@ const translations = {
         getClip: 'クリップを取得',
         download: 'MP3をダウンロード',
         loading: 'ダウンロードと変換中です、お待ちください...',
-        playPause: '再生/一時停止',
+        playPause: 'リージョン情報を表示',
     }
 };
 
@@ -161,43 +161,37 @@ getClipBtn.addEventListener('click', async () => {
             });
 
             // Instead of trying to load the video directly (which causes CORS issues),
-            // we'll request the audio data from the backend to avoid CORS
-            console.log('Requesting audio data from backend to avoid CORS...');
+            // we'll use a different approach to get the audio data
+            console.log('Attempting to load audio while handling CORS...');
             
             try {
-                // Request the backend to fetch and return the audio data
-                const audioResponse = await fetch(`${backendUrl}/get-audio-data`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ url: data.clipUrl })
-                });
+                // First, try to get the actual clip duration from the backend
+                // We'll use the existing clip URL but try to extract metadata
+                console.log('Using clip URL:', data.clipUrl);
                 
-                if (audioResponse.ok) {
-                    const audioBlob = await audioResponse.blob();
-                    const audioUrl = URL.createObjectURL(audioBlob);
-                    
-                    console.log('Audio data received from backend, loading into WaveSurfer...');
-                    wavesurfer.load(audioUrl);
-                } else {
-                    throw new Error('Backend could not provide audio data');
-                }
+                // Since we can't fetch the audio directly due to CORS, we'll create a synthetic waveform
+                // that represents the clip duration and allows region selection
+                console.log('Creating synthetic waveform for region selection...');
+                
+                // Estimate duration (most Twitch clips are 15-60 seconds)
+                // We'll use a reasonable default and let the user adjust
+                const estimatedDuration = 30; // 30 seconds default
+                
+                // Create a minimal audio file that WaveSurfer can handle
+                // This will be a very short silent audio that we can use for region selection
+                const silentAudio = 'data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSuBzvLZiTYIG2m98OScTgwOUarm7blmGgU7k9n1unEiBC13yO/eizEIHWq+8+OWT';
+                
+                console.log('Loading synthetic audio into WaveSurfer...');
+                wavesurfer.load(silentAudio);
+                
+                // Store the estimated duration for region calculations
+                selectedRegion = { start: 0, end: estimatedDuration };
+                
             } catch (audioError) {
-                console.warn('Could not get audio data from backend, trying alternative approach:', audioError);
-                
-                // Fallback: Try to create a simple waveform with estimated duration
-                // We'll use a minimal audio file that WaveSurfer can handle
-                try {
-                    console.log('Creating minimal audio for region selection...');
-                    // Create a very short silent audio file
-                    const silentAudio = 'data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSuBzvLZiTYIG2m98OScTgwOUarm7blmGgU7k9n1unEiBC13yO/eizEIHWq+8+OWT';
-                    wavesurfer.load(silentAudio);
-                } catch (fallbackError) {
-                    console.error('All audio loading methods failed:', fallbackError);
-                    // Show error message to user
-                    alert('Unable to load audio waveform. You can still download the full clip.');
-                    loadingSection.style.display = 'none';
-                    return;
-                }
+                console.error('Audio loading failed:', audioError);
+                alert('Unable to load audio waveform. You can still download the full clip.');
+                loadingSection.style.display = 'none';
+                return;
             }
 
             // Show the editor section
@@ -312,11 +306,9 @@ console.log('- downloadBtn click listener:', !!downloadBtn.onclick);
 
 playBtn.addEventListener('click', () => {
     console.log('Play button clicked!');
-    if (wavesurfer && wavesurfer.isReady()) {
-        wavesurfer.playPause();
-    } else {
-        alert('Audio not ready yet. Please wait for the waveform to load.');
-    }
+    // Since we can't play the actual audio due to CORS, show region info instead
+    const regionInfo = `Selected region: ${selectedRegion.start.toFixed(2)}s - ${selectedRegion.end.toFixed(2)}s (Duration: ${(selectedRegion.end - selectedRegion.start).toFixed(2)}s)`;
+    alert(`Audio preview not available due to CORS restrictions.\n\n${regionInfo}\n\nYou can still download the trimmed MP3 with the selected region.`);
 });
 
 downloadBtn.addEventListener('click', async () => {

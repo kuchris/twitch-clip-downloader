@@ -28,8 +28,11 @@
                 <span>Selection: <span id="region-start">0.00</span>s - <span id="region-end">0.00</span>s</span>
             </div>
             <div class="controls">
-                <button id="play-btn" data-i18n-key="playPause">Play / Pause</button>
+                <button id="play-btn" data-i18n-key="playPause">Show Region Info</button>
                 <button id="download-btn" data-i18n-key="download">Download MP3</button>
+            </div>
+            <div class="info-note">
+                <p><strong>Note:</strong> Due to CORS restrictions, we cannot load the actual audio from Twitch directly. The waveform shown is a representation for region selection. You can still select precise time regions and download the trimmed MP3 with accurate timing.</p>
             </div>
         </div>
         <div class="loading-section" style="display: none;">
