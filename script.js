@@ -154,60 +154,6 @@ getClipBtn.addEventListener('click', async () => {
                 if (startTimeInput && !startTimeInput.matches(':focus')) {
                     startTimeInput.value = video.currentTime.toFixed(1);
                 }
-                
-                // Update visual timeline indicator
-                updateTimelineIndicator();
-            });
-            
-            // Create visual timeline indicator
-            const timelineContainer = document.createElement('div');
-            timelineContainer.className = 'timeline-indicator';
-            timelineContainer.innerHTML = `
-                <div class="timeline-track">
-                    <div class="timeline-progress"></div>
-                    <div class="timeline-selection"></div>
-                    <div class="timeline-cursor"></div>
-                </div>
-                <div class="timeline-labels">
-                    <span class="current-time">0.0s</span>
-                    <span class="duration">0.0s</span>
-                </div>
-            `;
-            videoContainer.appendChild(timelineContainer);
-            
-            const timelineTrack = timelineContainer.querySelector('.timeline-track');
-            const timelineProgress = timelineContainer.querySelector('.timeline-progress');
-            const timelineSelection = timelineContainer.querySelector('.timeline-selection');
-            const timelineCursor = timelineContainer.querySelector('.timeline-cursor');
-            const currentTimeLabel = timelineContainer.querySelector('.current-time');
-            const durationLabel = timelineContainer.querySelector('.duration');
-            
-            function updateTimelineIndicator() {
-                if (video.duration) {
-                    const progress = (video.currentTime / video.duration) * 100;
-                    const startPercent = (selectedRegion.start / video.duration) * 100;
-                    const endPercent = (selectedRegion.end / video.duration) * 100;
-                    
-                    timelineProgress.style.width = progress + '%';
-                    timelineSelection.style.left = startPercent + '%';
-                    timelineSelection.style.width = (endPercent - startPercent) + '%';
-                    timelineCursor.style.left = progress + '%';
-                    
-                    currentTimeLabel.textContent = video.currentTime.toFixed(1) + 's';
-                    durationLabel.textContent = video.duration.toFixed(1) + 's';
-                }
-            }
-            
-            // Make timeline clickable for seeking
-            timelineTrack.addEventListener('click', (e) => {
-                const rect = timelineTrack.getBoundingClientRect();
-                const clickX = e.clientX - rect.left;
-                const clickPercent = clickX / rect.width;
-                const newTime = clickPercent * video.duration;
-                
-                video.currentTime = newTime;
-                startTimeInput.value = newTime.toFixed(1);
-                selectedRegion.start = newTime;
             });
             
             // Synchronize time inputs with video
