@@ -17,16 +17,32 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        // This is a simplified way to get the video src.
-        // In a real app, you'd want to use the backend to get the direct URL
-        // to avoid CORS issues and to handle different clip URL formats.
-        // For this example, we'll just show the editor.
-        editorSection.style.display = 'block';
+        editorSection.style.display = 'none'; // Hide until we get the URL
+        loadingSection.style.display = 'block'; // Show loading indicator
 
-        // A more robust solution would be to have an endpoint that returns the video URL
-        // and then set it as the video src. For now, we can't directly load the twitch clip
-        // due to CORS. The user will have to use the download button directly.
-        // We will show the editor so they can set the start and end times.
+        try {
+            const response = await fetch(`${backendUrl}/get-clip-url`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ url })
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                video.src = data.clipUrl;
+                editorSection.style.display = 'block'; // Show editor
+            } else {
+                const errorText = await response.text();
+                alert(`Error: ${errorText}`);
+            }
+        } catch (error) {
+            console.error('Error getting clip URL:', error);
+            alert('An error occurred while getting the clip URL.');
+        } finally {
+            loadingSection.style.display = 'none'; // Hide loading indicator
+        }
     });
 
     video.addEventListener('loadedmetadata', () => {
